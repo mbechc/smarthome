@@ -2,7 +2,7 @@ const mqttClient = require('./lib/mqttClient');
 const cron = require('node-cron');
 const { loadRules, handleRule } = require('./lib/ruleEngine');
 
-const rules = loadRules('./rules');
+const rules = loadRules();
 
 // Scheduler askers
 for (const rule of rules) {
