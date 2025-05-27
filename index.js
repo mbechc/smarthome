@@ -1,30 +1,24 @@
 const mqttClient = require('./lib/mqttClient');
-const cron = require('node-cron');
 const { loadRules, handleRule } = require('./lib/ruleEngine');
 
-const rules = loadRules();
+const rules = loadRules('./rules');
 
-// Scheduler askers
-for (const rule of rules) {
-  const asker = rule.triggerAsker;
-  if (asker.type === 'schedule' && asker.cron) {
-    cron.schedule(asker.cron, async () => {
-      console.log(`[SCHEDULE] Rule ${rule.id} triggered by ${asker.id}`);
-      await handleRule(rule);
-    });
-  }
-}
-
-// MQTT askers
 mqttClient.on('message', async (topic, message) => {
-  const payload = JSON.parse(message.toString());
+  const payload = message.toString();
   for (const rule of rules) {
-    const { triggerAsker } = rule;
-    if (triggerAsker.type === 'mqtt' &&
-        triggerAsker.topic === topic &&
-        triggerAsker.match(payload)) {
-      console.log(`[MQTT] Rule ${rule.id} triggered by ${triggerAsker.id}`);
+    const asker = rule.triggerAsker;
+    if (asker.type === 'mqtt' && topic === asker.topic && asker.match(payload)) {
+      console.log(`[MATCH] Triggered rule: ${rule.id}`);
       await handleRule(rule);
+    }
+  }
+});
+
+mqttClient.on('connect', () => {
+  for (const rule of rules) {
+    if (rule.triggerAsker.type === 'mqtt') {
+      mqttClient.subscribe(rule.triggerAsker.topic);
+      console.log(`[SUBSCRIBE] ${rule.triggerAsker.topic}`);
     }
   }
 });
